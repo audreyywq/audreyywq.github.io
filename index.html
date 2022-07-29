@@ -1,22 +1,455 @@
 <!DOCTYPE html>
 <html lang="en">
+<style>
+    body {
+        /*font: 10px "Helvetica Neue", Helvetica, Arial, sans-serif;*/
+    }
+    .tooltip {
+        fill: white;
+        stroke: #000;
+    }
+</style>
 <head>
     <meta charset="UTF-8">
+    <script src='https://d3js.org/d3.v5.min.js'></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-annotation/2.5.1/d3-annotation.min.js"></script>
     <title>Title</title>
-    <h1>HELLO111</h1>
+    <h1>Net Population Change and Home Values by State From 2014 to 2021</h1>
 </head>
-<body onload="getData()">
-<svg width=1800 height=900>
+<body onload="loadData()">
+<svg width=1600 height=800>
 
 </svg>
 <script>
-    let years = ["<-Prev", 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, "Next->"]
+    let years = ["Prev", "2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "Next"]
+    function loadData() {
+        Promise.all([
+            d3.csv("/data/dataall.csv"), // Combined population + price index data => year 2014 - 2021
+        ]).then(([dataall]) => {
+            console.log(dataall)
 
-    function getData() {
-        d3.csv("")
+            // Clean up dataset to only include state level data
+            const filtered_dataall = dataall.filter(function(d,i){
+                if (d["REGION"] !== 'X' && d["SUMLEV"] === '40') {
+                    return d;
+                }
+            });
+
+            console.log(filtered_dataall['NPOPCHG_2014']);
+
+            // const filtered_state = pop2020.filter(function (d){return d[][0]===0});
+            // console.log( filtered_state);
+
+            const margin = 20;
+
+            // obtained from excel across 2014 - 2021
+            const max_pop_change = 505439;
+            const min_pop_change = -319020;
+
+            // obtained from excel across 6/30/2014, 6/30,2015 ... 6/30/2021 index data
+            const max_house_index_value = 738364;
+            const min_house_index_value = 95361;
+
+            let current_year = "2014";
+            let selected_year = "2014";
+
+            // x axis = net population change
+            let xs = d3.scaleLinear().domain([min_pop_change-50000,max_pop_change+50000]).range([0,900]);
+
+            // y axis = house price index
+            let ys = d3.scaleLinear().domain([min_house_index_value-50000,max_house_index_value+50000]).range([500,0]);
+
+            let slide_buttons = d3.select('svg').selectAll('g')
+                .data(years)
+                .enter()
+                .append('g')
+                // .attr("class", "buttons")
+                .attr("transform", function(d,i) {return "translate("+(15+margin+i*50)+","+margin+")"});
+
+            let texts_on_button = slide_buttons.append('text')
+                .attr('x',-35)
+                .attr('y', -25)
+                .text(function (d,i) {
+                    return years[i];
+                }).attr("transform","translate("+margin+","+margin+")");
+
+            slide_buttons.insert("rect", "texts_on_button")
+                .attr("id", function(d) {
+                    return "year_" + d;
+                })
+                .attr('width', 45)
+                .attr('height', 35)
+                .attr('opacity', 0.5)
+                .attr('x', -40)
+                .attr('y', -50)
+                .attr('fill', function(d) {
+                    if (d === years[0] || d === years[years.length-1]) {
+                        return 'darkblue';
+                    } else if (d === "2014") { // by default the initial page shows 2014 data
+                        return "orange"; // selected button is blue
+                    }else {
+                        return 'blue'; // unselected button year is blue
+                    }
+                })
+                .on("click", function(d) {
+                    console.log("the rect id = " + ("year_" + String(d)));
+                    d3.selectAll('rect').attr("fill", "blue");
+                    d3.select("#year_Prev").attr("fill","darkblue");
+                    d3.select("#year_Next").attr("fill","darkblue");
+
+                    if (d === years[0]) {
+                        if (current_year !== '2014') {
+                            current_year = String(Number(current_year) - 1);
+                        }
+                    } else if (d === years[years.length-1]) {
+                        if (current_year !== '2021') {
+                            current_year = String(Number(current_year) + 1);
+                        }
+                    } else {
+                        current_year = d;
+                    }
+
+                    // Button for the selected year is shown as orange
+                    d3.select("#year_"+current_year).attr("fill", "orange");
+
+                    console.log("year= ",+current_year);
+                    console.log(d);
+
+                    d3.selectAll("circle").transition().duration(1500).delay(5).attr("cx",function(d,i){ // population
+                        return xs(Number.parseInt(d['NPOPCHG_'+current_year]));})
+                        .attr("cy",function(d,i){return ys(Number.parseInt(d['6/30/'+current_year]));});
+
+                    if (current_year === '2021') {
+                        call2021annotation();
+                    } else {
+                        d3.selectAll("#annotation-group2021").remove();
+                    }
+                    if (current_year === '2020') {
+                        call2020annotation();
+                    } else {
+                        d3.selectAll("#annotation-group2020").remove();
+                    }
+                    if (current_year === '2019') {
+                        call2019annotation();
+                    } else {
+                        d3.selectAll("#annotation-group2019").remove();
+                    }
+                    if (current_year === '2018') {
+                        call2018annotation();
+                    } else {
+                        d3.selectAll("#annotation-group2018").remove();
+                    }
+                    if (current_year === '2015') {
+                        call2015annotation();
+                    } else {
+                        d3.selectAll("#annotation-group2015").remove();
+                    }
+
+                })
+                .attr("transform","translate("+margin+","+margin+")");
+
+            function call2021annotation () {
+                let makeAnnotations2021 = d3.annotation()
+                    .editMode(false)
+                    .notePadding(15)
+                    .type(d3.annotationCallout)
+                    .annotations(annotations2021);
+                d3.select("svg")
+                    .append("g")
+                    .attr("id", "annotation-group2021")
+                    .call(makeAnnotations2021);
+            }
+            function call2015annotation () {
+                let makeAnnotations2015 = d3.annotation()
+                    .editMode(false)
+                    .notePadding(15)
+                    .type(d3.annotationCallout)
+                    .annotations(annotations2015);
+                d3.select("svg")
+                    .append("g")
+                    .attr("id", "annotation-group2015")
+                    .call(makeAnnotations2015);
+            }
+
+            function call2018annotation () {
+                let makeAnnotations2018 = d3.annotation()
+                    .editMode(false)
+                    .notePadding(15)
+                    .type(d3.annotationCallout)
+                    .annotations(annotations2018);
+                d3.select("svg")
+                    .append("g")
+                    .attr("id", "annotation-group2018")
+                    .call(makeAnnotations2018);
+            }
+
+            function call2019annotation () {
+                let makeAnnotations2019 = d3.annotation()
+                    .editMode(false)
+                    .notePadding(15)
+                    .type(d3.annotationCallout)
+                    .annotations(annotations2019);
+                d3.select("svg")
+                    .append("g")
+                    .attr("id", "annotation-group2019")
+                    .call(makeAnnotations2019);
+            }
+
+            function call2020annotation () {
+                let makeAnnotations2020 = d3.annotation()
+                    .editMode(false)
+                    .notePadding(15)
+                    .type(d3.annotationCallout)
+                    .annotations(annotations2020);
+                d3.select("svg")
+                    .append("g")
+                    .attr("id", "annotation-group2020")
+                    .call(makeAnnotations2020);
+            }
+
+            const annotations2021 = [{
+                note: {
+                    label: "had significant population loss, yet still holds high home values",
+                    bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
+                    title: "California"
+                },
+                //can use x, y directly instead of data
+                // data: { date: "18-Sep-09", close: 185.02 },
+                x: xs(-261902)+70,
+                y: ys(677353) +40,
+                className: "ann2021_01",
+                dy: 65,
+                dx: 40
+            }, {
+                className: "ann2021_02",
+                note: {
+                    label: "had the highest population loss among all states ",
+                    bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
+                    title: "New York"
+                },
+                x: xs(-319020)+70,
+                y: ys(354859) +40,
+                dy: 65,
+                dx: 50
+            }];
+
+            const annotations2015 = [{
+                note: {
+                    label: "beat California and had the second highest population increase while still having a relatively low home values",
+                    bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
+                    title: "Florida"
+                },
+                //can use x, y directly instead of data
+                // data: { date: "18-Sep-09", close: 185.02 },
+                x: xs(365231)+70,
+                y: ys(189116) +40,
+                className: "ann2015_01",
+                dy: -165,
+                dx: 300
+            }, {
+                className: "ann2015_02",
+                note: {
+                    label: "had the highest home value among all states in 2015 while having little population change",
+                    bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
+                    title: "Hawaii"
+                },
+                x: xs(7664)+70,
+                y: ys(566514) +40,
+                dy: -5,
+                dx: 50
+            }];
+
+
+            const annotations2018 = [{
+                note: {
+                    label: "The two southern states are slowing down in population increases",
+                    bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
+                    title: "Florida, Texas"
+                },
+                x: xs(300000)+70,
+                y: ys(215000) +40,
+                className: "ann2018_01",
+                dy: -5,
+                dx: 300
+            }];
+            const annotations2019 = [{
+                note: {
+                    label: "Barely had any population growth.. The state's population growth has been dropping consecutively",
+                    bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
+                    title: "California"
+                },
+                x: xs(147)+70,
+                y: ys(552725) +40,
+                className: "ann2019_01",
+                dy: 5,
+                dx: 300
+            }];
+
+            const annotations2020 = [{
+                note: {
+                    label: "was losing people as well, but it didn't affect the state's home value",
+                    bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
+                    title: "New York state"
+                },
+                x: xs(-126355)+70,
+                y: ys(316339) +40,
+                className: "ann2020_01",
+                dy: 5,
+                dx: -30
+            }];
+
+            // let makeAnnotations2021 = d3.annotation()
+            //     .editMode(false)
+            //     .notePadding(15)
+            //     .type(d3.annotationCallout)
+            //     .annotations(annotations2021);
+            // if (current_year === '2021') {
+            //     d3.select("svg")
+            //         .append("g")
+            //         .attr("id", "annotation-group2021")
+            //         .call(makeAnnotations2021);
+            // } else {
+            //     d3.selectAll("#annotation-group2021").remove();
+            // }
+
+
+            let dots = d3.select("svg").selectAll("g.dots").data(filtered_dataall)
+                .enter().append('g').attr("transform","translate("+(60+margin)+","+(20+margin)+")");
+            dots.selectAll("circle")
+                .data(filtered_dataall)
+                .enter()
+                .append("circle")
+                .attr("cx",function(d,i){ // population
+                    return xs(Number.parseInt(d['NPOPCHG_'+current_year]));})
+                .attr("cy",function(d,i){return ys(Number.parseInt(d['6/30/'+current_year]));}) // price index
+                .attr("r",8)
+                .attr("stroke", "grey")
+                .on("mouseover", function(d) {
+                    console.log("testing mouseover");
+                    ttp.style("display",null);
+                    statetext.style("display",null);
+                    poptext.style("display",null);
+                    pricetext.style("display",null);
+                    regiontext.style("display",null);
+                    regionPoptext.style("display",null);
+
+                })
+                .on("mousemove", mousemove)
+                .on("mouseout", function(d) {
+                    ttp.style("display","none");
+                    statetext.style("display","none");
+                    poptext.style("display","none");
+                    pricetext.style("display","none");
+                    regiontext.style("display","none");
+                    regionPoptext.style("display","none");
+
+                })
+                .style("fill", function(d) {
+                    switch(d['REGION']) {
+                        case '1':
+                            return 'green' // Northeast Region
+                        case '2':
+                            return 'yellow' // Midwest Region
+                        case '3':
+                            return 'orange' // South Region
+                        case '4':
+                            return 'purple' // West Region
+                        default:
+                            return 'red'
+                    }
+                });
+
+            let ttp = dots.append("rect")
+                .attr("class", "tooltip")
+                .style("display","none")
+                .style("opacity", 1)
+                .attr("width", 225)
+                .attr("height", 125)
+                .attr("x", 10)
+                .attr("y", -22)
+                .attr("rx", 4)
+                .attr("ry", 8);
+
+            let statetext = dots.append("text")
+                .attr("class", "state-name")
+                .attr("x", 18)
+                .attr("y", -2);
+            let regiontext = dots.append("text")
+                .attr("class", "region")
+                .attr("x", 18)
+                .attr("y", 18);
+            let regionPoptext = dots.append("text")
+                .attr("class", "regionPop")
+                .attr("x", 18)
+                .attr("y", 38);
+            let poptext = dots.append("text")
+                .attr("class", "populationchange")
+                .attr("x", 18)
+                .attr("y", 58);
+            let pricetext = dots.append("text")
+                .attr("class", "home-price-index")
+                .attr("x", 18)
+                .attr("y", 78);
+
+
+            function mousemove(d) {
+                let region = d['REGION'] === '1' ? 'Northeast' : d['REGION'] === '2' ? 'Midwest' : d['REGION'] === '3' ? 'South' : d['REGION'] === '4' ? 'West' : null;
+                let popChange = Number.parseInt(d['NPOPCHG_' + current_year]);
+                let priceIndex = Number.parseInt(d['6/30/' + current_year]);
+                let regionPopTotal = Number.parseInt(d['region_npopchg_' + current_year]);
+                pricetext.attr("transform", "translate(" + xs(popChange) + "," + ys(priceIndex) + ")");
+                regiontext.attr("transform", "translate(" + xs(popChange) + "," + ys(priceIndex) + ")");
+                poptext.attr("transform", "translate(" + xs(popChange) + "," + ys(priceIndex) + ")");
+                statetext.attr("transform", "translate(" + xs(popChange) + "," + ys(priceIndex) + ")");
+                regionPoptext.attr("transform", "translate(" + xs(popChange) + "," + ys(priceIndex) + ")");
+                ttp.attr("transform", "translate(" + xs(popChange) + "," + ys(priceIndex) + ")");
+                statetext.text(d['NAME']);
+                regiontext.text("Region: " + region);
+                regionPoptext.text("Region Pop Change: " + regionPopTotal);
+                poptext.text("State Population Change: " + popChange);
+                pricetext.text("Home Value Index: " + priceIndex)
+            }
+
+
+            // Set axes
+            d3.select("svg")
+                .append("g")
+                .attr("transform","translate("+(60+margin)+","+(20+margin)+")").call(d3.axisLeft(ys));
+
+            d3.select("svg")
+                .append("g")
+                .attr("transform","translate("+(60+margin)+","+( 520+margin)+")").call(d3.axisBottom(xs));
+
+            // axis labels
+            d3.select("svg")
+                .append("g")
+                .attr("transform","translate("+(40+margin)+","+( 520+margin)+")").append("text").attr("x", 450 )
+                .attr("y",  50 ).style("text-anchor", "middle").text("Net Population Change");
+            d3.select("svg")
+                .append("g")
+                .attr("transform","translate("+(40+margin)+","+( 520+margin)+")")
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", 250 )
+                .attr("y",  -45 ).style("text-anchor", "middle").text("Home Price Index");
+        });
+
+        function display_annotations (year) {
+            // d3.select(".ann2021_01").attr("opacity",0);
+            // d3.select(".ann2021_02").attr("opacity",0);
+            // d3.select(".annotation-group").attr("opacity",0);
+
+                // d3.select(".ann2021_01").attr("opacity",1);
+                // d3.select(".ann2021_02").attr("opacity",1);
+
+
+
+
+        }
     }
 
-    colorForDots = d3.scaleOrdinal().domain(regions).range(["blue", "green", "black", "red", "darkorange", "darkred", "grey"])
+
+    // colorForDots = d3.scaleOrdinal().domain(regions).range(["blue", "green", "black", "red", "darkorange", "darkred", "grey"])
 </script>
 
 </body>
