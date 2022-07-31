@@ -2,7 +2,7 @@
 <html lang="en">
 <style>
     body {
-        /*font: 10px "Helvetica Neue", Helvetica, Arial, sans-serif;*/
+
     }
     .tooltip {
         fill: white;
@@ -13,7 +13,7 @@
     <meta charset="UTF-8">
     <script src='https://d3js.org/d3.v5.min.js'></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-annotation/2.5.1/d3-annotation.min.js"></script>
-    <title>Title</title>
+    <title>Net Population Change and Home Values by State From 2014 to 2021</title>
     <h1>Net Population Change and Home Values by State From 2014 to 2021</h1>
 </head>
 <body onload="loadData()">
@@ -35,10 +35,7 @@
                 }
             });
 
-            console.log(filtered_dataall['NPOPCHG_2014']);
-
-            // const filtered_state = pop2020.filter(function (d){return d[][0]===0});
-            // console.log( filtered_state);
+            //console.log(filtered_dataall['NPOPCHG_2014']);
 
             const margin = 20;
 
@@ -51,7 +48,6 @@
             const min_house_index_value = 95361;
 
             let current_year = "2014";
-            let selected_year = "2014";
 
             // x axis = net population change
             let xs = d3.scaleLinear().domain([min_pop_change-50000,max_pop_change+50000]).range([0,900]);
@@ -59,11 +55,14 @@
             // y axis = house price index
             let ys = d3.scaleLinear().domain([min_house_index_value-50000,max_house_index_value+50000]).range([500,0]);
 
-            let slide_buttons = d3.select('svg').selectAll('g')
+            // create buttons
+            d3.select("svg").append("g").attr("id", "buttons_g")
+
+            let slide_buttons = d3.select('#buttons_g').selectAll('g')
                 .data(years)
                 .enter()
                 .append('g')
-                // .attr("class", "buttons")
+                .attr("class", "buttons")
                 .attr("transform", function(d,i) {return "translate("+(15+margin+i*50)+","+margin+")"});
 
             let texts_on_button = slide_buttons.append('text')
@@ -115,7 +114,7 @@
                     console.log("year= ",+current_year);
                     console.log(d);
 
-                    d3.selectAll("circle").transition().duration(1500).delay(5).attr("cx",function(d,i){ // population
+                    d3.selectAll(".data_circles").transition().duration(1500).delay(5).attr("cx",function(d,i){ // population
                         return xs(Number.parseInt(d['NPOPCHG_'+current_year]));})
                         .attr("cy",function(d,i){return ys(Number.parseInt(d['6/30/'+current_year]));});
 
@@ -148,6 +147,7 @@
                 })
                 .attr("transform","translate("+margin+","+margin+")");
 
+            // annotations
             function call2021annotation () {
                 let makeAnnotations2021 = d3.annotation()
                     .editMode(false)
@@ -207,14 +207,64 @@
                     .call(makeAnnotations2020);
             }
 
+            const annotations_legend = [{
+                note: {
+                    label: "Hover over the circles in the plot to see more details",
+                    bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
+                    title: "Legend",
+                },
+                x: 1100,
+                y: 410,
+                className: "annotation_legend",
+                dy: -55,
+                dx: 80
+            }];
+
+            let makeAnnotations_legend = d3.annotation()
+                .editMode(false)
+                .notePadding(5)
+                .type(d3.annotationCallout)
+                .annotations(annotations_legend);
+            d3.select("svg")
+                .append("g")
+                .attr("id", "annotations_fixed2")
+                .call(makeAnnotations_legend);
+
+            const annotations = [{
+                note: {
+                    label: "Click on the Year or Prev/Next to navigate the visualization scenes",
+                    bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
+                    title: "Slide Buttons",
+                    wrap: 400
+                },
+                x: 520,
+                y: 10,
+                className: "annotation_buttons_text",
+                dy: 5,
+                dx: 120
+            }];
+
+            // orange annotation: "#f77d2a"
+            // purple annotation: "#9390c3"
+            // green annotation: "19833e"
+
+            let makeAnnotations = d3.annotation()
+                .editMode(false)
+                .notePadding(5)
+                .type(d3.annotationCallout)
+                .annotations(annotations);
+            d3.select("svg")
+                .append("g")
+                .attr("id", "annotations_fixed")
+                .call(makeAnnotations);
+
             const annotations2021 = [{
                 note: {
                     label: "had significant population loss, yet still holds high home values",
                     bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
                     title: "California"
                 },
-                //can use x, y directly instead of data
-                // data: { date: "18-Sep-09", close: 185.02 },
+                color: "#7d74b5",
                 x: xs(-261902)+70,
                 y: ys(677353) +40,
                 className: "ann2021_01",
@@ -227,6 +277,7 @@
                     bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
                     title: "New York"
                 },
+                color: "#66c2a5",
                 x: xs(-319020)+70,
                 y: ys(354859) +40,
                 dy: 65,
@@ -239,13 +290,12 @@
                     bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
                     title: "Florida"
                 },
-                //can use x, y directly instead of data
-                // data: { date: "18-Sep-09", close: 185.02 },
+                color: "#f77d2a",
                 x: xs(365231)+70,
                 y: ys(189116) +40,
                 className: "ann2015_01",
-                dy: -165,
-                dx: 300
+                dy: -125,
+                dx: 100
             }, {
                 className: "ann2015_02",
                 note: {
@@ -253,10 +303,11 @@
                     bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
                     title: "Hawaii"
                 },
+                color: "#9390c3",
                 x: xs(7664)+70,
                 y: ys(566514) +40,
                 dy: -5,
-                dx: 50
+                dx: -20
             }];
 
 
@@ -266,11 +317,12 @@
                     bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
                     title: "Florida, Texas"
                 },
+                color: "#f77d2a",
                 x: xs(300000)+70,
                 y: ys(215000) +40,
                 className: "ann2018_01",
-                dy: -5,
-                dx: 300
+                dy: -55,
+                dx: 100
             }];
             const annotations2019 = [{
                 note: {
@@ -278,12 +330,26 @@
                     bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
                     title: "California"
                 },
-                x: xs(147)+70,
+                color: "#9390c3",
+                x: xs(147)+80,
                 y: ys(552725) +40,
                 className: "ann2019_01",
-                dy: 5,
-                dx: 300
-            }];
+                dy: 0,
+                dx: 200
+            },
+                {
+                    note: {
+                        label: "is still very popular. It's gaining more people.",
+                        bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
+                        title: "Texas"
+                    },
+                    color: "#f77d2a",
+                    x: xs(362230)+80,
+                    y: ys(213760) +40,
+                    className: "ann2019_02",
+                    dy: -10,
+                    dx: 100
+                }];
 
             const annotations2020 = [{
                 note: {
@@ -291,26 +357,13 @@
                     bgPadding: {"top":15,"left":10,"right":10,"bottom":10},
                     title: "New York state"
                 },
+                color: "#66c2a5",
                 x: xs(-126355)+70,
                 y: ys(316339) +40,
                 className: "ann2020_01",
                 dy: 5,
                 dx: -30
             }];
-
-            // let makeAnnotations2021 = d3.annotation()
-            //     .editMode(false)
-            //     .notePadding(15)
-            //     .type(d3.annotationCallout)
-            //     .annotations(annotations2021);
-            // if (current_year === '2021') {
-            //     d3.select("svg")
-            //         .append("g")
-            //         .attr("id", "annotation-group2021")
-            //         .call(makeAnnotations2021);
-            // } else {
-            //     d3.selectAll("#annotation-group2021").remove();
-            // }
 
 
             let dots = d3.select("svg").selectAll("g.dots").data(filtered_dataall)
@@ -319,6 +372,7 @@
                 .data(filtered_dataall)
                 .enter()
                 .append("circle")
+                .attr("class", "data_circles")
                 .attr("cx",function(d,i){ // population
                     return xs(Number.parseInt(d['NPOPCHG_'+current_year]));})
                 .attr("cy",function(d,i){return ys(Number.parseInt(d['6/30/'+current_year]));}) // price index
@@ -434,22 +488,26 @@
                 .attr("y",  -45 ).style("text-anchor", "middle").text("Home Price Index");
         });
 
-        function display_annotations (year) {
-            // d3.select(".ann2021_01").attr("opacity",0);
-            // d3.select(".ann2021_02").attr("opacity",0);
-            // d3.select(".annotation-group").attr("opacity",0);
+        // legend
+        d3.select("svg").append("g").attr("id", "legend");
+        let svg_legend = d3.select("#legend");
+        svg_legend.append("circle").attr("class", "legends").attr("stroke", "grey").attr("cx",1100).attr("cy",440).attr("r", 8).style("fill", "green");
+        svg_legend.append("circle").attr("class", "legends").attr("stroke", "grey").attr("cx",1100).attr("cy",470).attr("r", 8).style("fill", "yellow");
+        svg_legend.append("circle").attr("class", "legends").attr("stroke", "grey").attr("cx",1100).attr("cy",500).attr("r", 8).style("fill", "orange");
+        svg_legend.append("circle").attr("class", "legends").attr("stroke", "grey").attr("cx",1100).attr("cy",530).attr("r", 8).style("fill", "purple");
+        svg_legend.append("text").attr("class", "legends").attr("x", 1120).attr("y", 440)
+            .text("Northeast Region").style("font-size", "15px").attr("alignment-baseline","middle");
+        svg_legend.append("text").attr("class", "legends").attr("x", 1120).attr("y", 470)
+            .text("Midwest Region").style("font-size", "15px").attr("alignment-baseline","middle");
+        svg_legend.append("text").attr("class", "legends").attr("x", 1120).attr("y", 500)
+            .text("South Region").style("font-size", "15px").attr("alignment-baseline","middle");
+        svg_legend.append("text").attr("class", "legends").attr("x", 1120).attr("y", 530)
+            .text("West Region").style("font-size", "15px").attr("alignment-baseline","middle");
 
-                // d3.select(".ann2021_01").attr("opacity",1);
-                // d3.select(".ann2021_02").attr("opacity",1);
 
 
-
-
-        }
     }
 
-
-    // colorForDots = d3.scaleOrdinal().domain(regions).range(["blue", "green", "black", "red", "darkorange", "darkred", "grey"])
 </script>
 
 </body>
